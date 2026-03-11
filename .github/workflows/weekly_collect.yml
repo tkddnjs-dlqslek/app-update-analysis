@@ -1,0 +1,48 @@
+name: Weekly Data Collection & AI Summary
+
+on:
+  schedule:
+    - cron: "0 1 * * 1"   # 매주 월요일 오전 10시 (KST = UTC+1 → 01:00 UTC)
+  workflow_dispatch:        # 수동 실행 버튼
+
+jobs:
+  collect-and-analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: 1. 버전 히스토리 수집
+        run: python 1_collection/apkmirror_scraper.py
+
+      - name: 2. 리뷰 수집
+        run: python 1_collection/review_scraper.py
+
+      - name: 3. 전처리
+        run: python 2_preprocessing/cleaner.py
+
+      - name: 4. Claude AI 부정 리뷰 요약
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY" > .env
+          python 4_ai/review_summarizer.py
+
+      - name: 결과 커밋
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/processed/ 3_eda/analysis.ipynb
+          git diff --staged --quiet || git commit -m "chore: weekly data update $(date +'%Y-%m-%d')"
+          git push
