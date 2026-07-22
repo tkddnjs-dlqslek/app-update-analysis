@@ -5,6 +5,9 @@
 > 한국 대표 앱 6개(배달의민족·쿠팡이츠·쿠팡·마켓컬리·카카오뱅크·토스)의 버전 히스토리와
 > Google Play 리뷰를 결합해, 업데이트 전후 ±30일 평점 변화를 정량 분석하고
 > 부정 리뷰를 Claude로 자동 요약하는 파이프라인.
+>
+> 버전 히스토리는 별도 크롤링이 아니라 **리뷰의 `appVersion` 필드 첫 등장일**로 재구성
+> (APKMirror가 한국 앱 미등재·403 차단이라 리뷰 데이터 자체에서 타임라인을 복원하는 우회 설계).
 
 ## 핵심 결과 (2026-04 스냅샷, 업데이트 528건 · 2021-07 ~ 2026-03)
 
@@ -25,7 +28,7 @@
 ## 파이프라인
 
 ```
-1_collection/    APKMirror 버전 히스토리 + google-play-scraper 리뷰 (앱당 5,000건)
+1_collection/    리뷰 기반 버전 타임라인 재구성 + google-play-scraper 리뷰 (앱당 5,000건)
 2_preprocessing/ 버전-리뷰 결합, 업데이트 전후 ±30일 윈도우 분리 → {app_id}_analysis.csv
 3_eda/           가설 검증 노트북 (유형별 delta, 시계열, 1점 리뷰 집중 분석)
 4_ai/            평점 급락 버전의 부정 리뷰를 Claude가 요약 → top_complaints/keywords/한줄 진단
@@ -34,7 +37,7 @@
 
 ```bash
 pip install -r requirements.txt
-python 1_collection/apkmirror_scraper.py && python 1_collection/review_scraper.py
+python 1_collection/apkmirror_scraper.py && python 1_collection/review_scraper.py   # 둘 다 google-play-scraper 기반
 python 2_preprocessing/cleaner.py
 python 4_ai/review_summarizer.py        # .env에 ANTHROPIC_API_KEY 필요
 streamlit run 5_dashboard/app.py
